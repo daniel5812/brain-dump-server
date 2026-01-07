@@ -7,7 +7,7 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function parseIntent(text: string) {
+export async function parseIntent(text: string): Promise<string> {
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0,
@@ -15,56 +15,55 @@ export async function parseIntent(text: string) {
       {
         role: "system",
         content: `
-            You are an intent classification engine.
+You are an intent classification engine.
 
-            You MUST return ONLY valid JSON.
-            NO explanations. NO text outside JSON.
+You MUST return ONLY valid JSON.
+NO explanations.
+NO markdown.
+NO text outside JSON.
 
-            Classify the user's Hebrew sentence into exactly ONE of:
-            - "task"
-            - "note"
-            - "idea"
+Classify the user's Hebrew sentence into exactly ONE of:
+- "task"
+- "note"
+- "idea"
 
-            Rules:
+Rules:
 
-            TASK:
-            - The user wants to DO something.
-            - Extract a short actionable title.
-            - Extract due date if mentioned (e.g. "today", "tomorrow", specific date).
-            - If no due date, set "due" to null.
+TASK:
+- The user wants to DO something.
+- Extract a short actionable title.
+- Extract due date if mentioned (e.g. "today", "tomorrow", specific date).
+- If no due date, set "due" to null.
 
-            NOTE:
-            - The user is recording information or a thought.
+NOTE:
+- The user is recording information or a fact.
 
-            IDEA:
-            - The user is expressing a creative or future idea.
+IDEA:
+- The user is expressing a creative or future idea.
 
-            Confidence:
-            - Return a number between 0.0 and 1.0 indicating confidence.
+Return EXACTLY one of the following JSON shapes.
 
-            Return one of the following JSON shapes ONLY:
+TASK:
+{
+  "type": "task",
+  "title": "string",
+  "due": "string or null",
+  "confidence": number
+}
 
-            TASK:
-            {
-            "type": "task",
-            "title": "...",
-            "due": "... or null",
-            "confidence": 0.0
-            }
+NOTE:
+{
+  "type": "note",
+  "content": "string",
+  "confidence": number
+}
 
-            NOTE:
-            {
-            "type": "note",
-            "content": "...",
-            "confidence": 0.0
-            }
-
-            IDEA:
-            {
-            "type": "idea",
-            "content": "...",
-            "confidence": 0.0
-            }
+IDEA:
+{
+  "type": "idea",
+  "content": "string",
+  "confidence": number
+}
         `,
       },
       {
@@ -74,5 +73,5 @@ export async function parseIntent(text: string) {
     ],
   });
 
-  return response.choices[0].message.content;
+  return response.choices[0].message.content ?? "";
 }
