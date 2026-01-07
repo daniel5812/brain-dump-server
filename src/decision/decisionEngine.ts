@@ -1,3 +1,6 @@
+import { createTodoistTask } from "../services/todoist";
+import { sendWhatsAppMessage } from "../services/whatsapp";
+
 type TaskIntent = {
   type: "task";
   title: string;
@@ -19,52 +22,61 @@ type IdeaIntent = {
 
 type Intent = TaskIntent | NoteIntent | IdeaIntent;
 
-export function decide(intent: Intent) {
+const MIN_CONFIDENCE = 0.75;
+
+export async function decide(intent: Intent) {
   switch (intent.type) {
     case "task":
-      return handleTask(intent);
-
+      return await handleTask(intent);
     case "note":
-      return handleNote(intent);
-
+      return await handleNote(intent);
     case "idea":
-      return handleIdea(intent);
-
+      return await handleIdea(intent);
     default:
       throw new Error("Unknown intent type");
   }
 }
 
-function handleTask(intent: TaskIntent) {
-  console.log("📋 DECISION: Create TASK");
-  console.log("• Title:", intent.title);
-  console.log("• Due:", intent.due);
-  console.log("• Confidence:", intent.confidence);
+/* ---------- TASK ---------- */
+
+async function handleTask(intent: TaskIntent) {
+  if (intent.confidence < MIN_CONFIDENCE) {
+    await sendWhatsAppMessage(
+      "⚠️ לא הייתי בטוח מספיק, אז לא יצרתי משימה."
+    );
+    return { action: "SKIPPED_LOW_CONFIDENCE" };
+  }
+
+  const task = await createTodoistTask(intent.title, intent.due);
+
+  await sendWhatsAppMessage(
+    `✅ נוצרה משימה:\n${intent.title}${
+      intent.due ? `\n📅 ${intent.due}` : ""
+    }`
+  );
 
   return {
-    action: "CREATE_TASK",
-    payload: intent,
+    action: "TASK_CREATED",
+    externalId: task.id,
   };
 }
 
-function handleNote(intent: NoteIntent) {
-  console.log("📝 DECISION: Save NOTE");
-  console.log("• Content:", intent.content);
-  console.log("• Confidence:", intent.confidence);
+/* ---------- NOTE ---------- */
 
-  return {
-    action: "SAVE_NOTE",
-    payload: intent,
-  };
+async function handleNote(intent: NoteIntent) {
+  await sendWhatsAppMessage(
+    `📝 נשמרה הערה:\n${intent.content}`
+  );
+
+  return { action: "NOTE_RECEIVED" };
 }
 
-function handleIdea(intent: IdeaIntent) {
-  console.log("💡 DECISION: Store IDEA");
-  console.log("• Content:", intent.content);
-  console.log("• Confidence:", intent.confidence);
+/* ---------- IDEA ---------- */
 
-  return {
-    action: "STORE_IDEA",
-    payload: intent,
-  };
+async function handleIdea(intent: IdeaIntent) {
+  await sendWhatsAppMessage(
+    `💡 נשמר רעיון:\n${intent.content}`
+  );
+
+  return { action: "IDEA_RECEIVED" };
 }

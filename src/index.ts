@@ -13,7 +13,7 @@ function extractJson(raw: string): string {
   const end = raw.lastIndexOf("}");
 
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error("No valid JSON object found in AI response");
+    throw new Error("Invalid JSON from AI");
   }
 
   return raw.slice(start, end + 1);
@@ -23,50 +23,28 @@ app.post("/brain-dump", async (req, res) => {
   const { text } = req.body;
 
   if (!text || typeof text !== "string") {
-    return res.status(400).json({ error: "Missing or invalid 'text' field" });
+    return res.status(400).json({ ok: false });
   }
 
   console.log("🧠 Raw input:", text);
 
-  let rawResponse: string;
-  let intent: any;
-
   try {
-    rawResponse = await parseIntent(text);
+    const raw = await parseIntent(text);
+    const intent = JSON.parse(extractJson(raw));
+
+    console.log("🤖 Parsed intent:", intent);
+
+    const decision = await decide(intent);
+    console.log("⚙️ Decision:", decision);
+
+    res.json({ ok: true });
   } catch (err) {
-    console.error("❌ Failed to call OpenAI:", err);
-    return res.status(500).json({ error: "AI request failed" });
+    console.error("❌ Error:", err);
+    res.status(500).json({ ok: false });
   }
-
-  try {
-    const cleaned = extractJson(rawResponse);
-    intent = JSON.parse(cleaned);
-  } catch (err) {
-    console.error("❌ Invalid JSON from AI:", rawResponse);
-    return res.status(500).json({ error: "Invalid AI response format" });
-  }
-
-  console.log("🤖 Parsed intent:", intent);
-
-  let decision;
-  try {
-    decision = decide(intent);
-  } catch (err) {
-    console.error("❌ Decision layer error:", err);
-    return res.status(500).json({ error: "Decision layer failed" });
-  }
-
-  console.log("⚙️ Decision result:", decision);
-
-  // זמני – לצורכי בדיקה בלבד
-  res.json({
-    ok: true,
-    decision,
-  });
 });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
