@@ -1,13 +1,24 @@
 import express from "express";
 import dotenv from "dotenv";
+
 import { parseIntent } from "./services/openai";
 import { decide } from "./decision/decisionEngine";
+import { executeActionPlan } from "./actions/executor";
+
+import {
+  getPendingFollowup,
+  clearPendingFollowup,
+} from "./followup/followupStore";
+import { resolveFollowup } from "./followup/followupResolver";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
+/**
+ * Extracts the first valid JSON object from LLM output
+ */
 function extractJson(raw: string): string {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
@@ -26,16 +37,35 @@ app.post("/brain-dump", async (req, res) => {
     return res.status(400).json({ ok: false });
   }
 
-  console.log("🧠 Raw input:", text);
+  console.log("🧠 User input:", text);
+
+  const pending = getPendingFollowup();
+  console.log("🟡 PENDING FOLLOWUP:", pending);
 
   try {
-    const raw = await parseIntent(text);
-    const intent = JSON.parse(extractJson(raw));
+    let plan;
 
-    console.log("🤖 Parsed intent:", intent);
+    // 🟢 1️⃣ אם יש follow-up פתוח → פותרים אותו
+    if (pending) {
+      console.log("↩️ Resolving follow-up");
 
-    const decision = await decide(intent);
-    console.log("⚙️ Decision:", decision);
+      plan = resolveFollowup(pending, text);
+      clearPendingFollowup();
+    }
+
+    // 🔵 2️⃣ אחרת → זרימה רגילה (AI)
+    else {
+      const raw = await parseIntent(text);
+      const rawIntent = JSON.parse(extractJson(raw));
+
+      console.log("🤖 Raw intent:", rawIntent);
+
+      plan = await decide(rawIntent);
+    }
+
+    console.log("⚙️ Action plan:", plan);
+
+    await executeActionPlan(plan);
 
     res.json({ ok: true });
   } catch (err) {
@@ -45,6 +75,7 @@ app.post("/brain-dump", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

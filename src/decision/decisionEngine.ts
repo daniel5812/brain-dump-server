@@ -1,82 +1,97 @@
-import { createTodoistTask } from "../services/todoist";
-import { sendWhatsAppMessage } from "../services/whatsapp";
+import { resolveIntent } from "./resolveIntent";
+import { ActionPlan } from "../actions/types";
 
-type TaskIntent = {
-  type: "task";
-  title: string;
-  due: string | null;
-  confidence: number;
-};
+export async function decide(rawIntent: any): Promise<ActionPlan> {
+  const intent = resolveIntent(rawIntent);
 
-type NoteIntent = {
-  type: "note";
-  content: string;
-  confidence: number;
-};
-
-type IdeaIntent = {
-  type: "idea";
-  content: string;
-  confidence: number;
-};
-
-type Intent = TaskIntent | NoteIntent | IdeaIntent;
-
-const MIN_CONFIDENCE = 0.75;
-
-export async function decide(intent: Intent) {
   switch (intent.type) {
+    /* =========================
+       TASK
+    ========================= */
     case "task":
-      return await handleTask(intent);
-    case "note":
-      return await handleNote(intent);
+      return {
+        actions: [
+          {
+            type: "CREATE_TASK",
+            title: intent.title,
+            due: intent.due,
+          },
+          {
+            type: "SEND_WHATSAPP",
+            message: `📋 יצרתי משימה: ${intent.title}${
+              intent.due ? ` (עד ${intent.due})` : ""
+            }`,
+          },
+        ],
+      };
+
+    /* =========================
+       MEETING
+    ========================= */
+    case "meeting":
+      return {
+        actions: [
+          {
+            type: "CREATE_MEETING",
+            title: intent.title,
+            start: intent.start,
+            end: intent.end,
+          },
+          {
+            type: "SEND_WHATSAPP",
+            message: `📅 פגישה נקבעה: ${intent.title}`,
+          },
+        ],
+      };
+
+    /* =========================
+       IDEA
+    ========================= */
     case "idea":
-      return await handleIdea(intent);
-    default:
-      throw new Error("Unknown intent type");
+      return {
+        actions: [
+          {
+            type: "SAVE_IDEA",
+            title: intent.title,
+          },
+          {
+            type: "SEND_WHATSAPP",
+            message: `💡 שמרתי רעיון: ${intent.title}`,
+          },
+        ],
+      };
+
+    /* =========================
+       UNCLEAR → FOLLOW-UP
+    ========================= */
+    case "unclear":
+      return {
+        actions: [
+          {
+            type: "REQUEST_FOLLOWUP",
+            intentType: rawIntent.hypothesis ?? "task",
+            title: intent.title,
+            missing: rawIntent.relativeTime
+              ? "DATE"
+              : "DATE_TIME_RANGE",
+            context: rawIntent.relativeTime ?? undefined,
+            question: rawIntent.relativeTime
+              ? "📅 הבנתי את השעה, אבל לא את היום. מתי זה אמור לקרות?"
+              : "🤔 זו משימה, פגישה או רק רעיון?",
+          },
+        ],
+      };
   }
-}
 
-/* ---------- TASK ---------- */
-
-async function handleTask(intent: TaskIntent) {
-  if (intent.confidence < MIN_CONFIDENCE) {
-    await sendWhatsAppMessage(
-      "⚠️ לא הייתי בטוח מספיק, אז לא יצרתי משימה."
-    );
-    return { action: "SKIPPED_LOW_CONFIDENCE" };
-  }
-
-  const task = await createTodoistTask(intent.title, intent.due);
-
-  await sendWhatsAppMessage(
-    `✅ נוצרה משימה:\n${intent.title}${
-      intent.due ? `\n📅 ${intent.due}` : ""
-    }`
-  );
-
+  /* =========================
+     SAFETY NET
+  ========================= */
   return {
-    action: "TASK_CREATED",
-    externalId: task.id,
+    actions: [
+      {
+        type: "SEND_WHATSAPP",
+        message: "🤖 לא הצלחתי להבין, אפשר לנסח מחדש?",
+      },
+    ],
   };
-}
-
-/* ---------- NOTE ---------- */
-
-async function handleNote(intent: NoteIntent) {
-  await sendWhatsAppMessage(
-    `📝 נשמרה הערה:\n${intent.content}`
-  );
-
-  return { action: "NOTE_RECEIVED" };
-}
-
-/* ---------- IDEA ---------- */
-
-async function handleIdea(intent: IdeaIntent) {
-  await sendWhatsAppMessage(
-    `💡 נשמר רעיון:\n${intent.content}`
-  );
-
-  return { action: "IDEA_RECEIVED" };
 }

@@ -4,7 +4,7 @@ dotenv.config();
 
 
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export async function parseIntent(text: string): Promise<string> {
@@ -15,55 +15,39 @@ export async function parseIntent(text: string): Promise<string> {
       {
         role: "system",
         content: `
-You are an intent classification engine.
+You are an intent signal extractor.
 
-You MUST return ONLY valid JSON.
-NO explanations.
-NO markdown.
-NO text outside JSON.
+CRITICAL RULES:
+- NEVER guess or infer calendar dates.
+- If the user does NOT explicitly mention a calendar date
+  (e.g. "24 October", "2026-01-15"),
+  then:
+  - start = null
+  - end = null
+  - hasDate = false
+  - relativeTime MUST contain the original time expression.
 
-Classify the user's Hebrew sentence into exactly ONE of:
-- "task"
-- "note"
-- "idea"
+Return ONE JSON object with this exact schema:
 
-Rules:
-
-TASK:
-- The user wants to DO something.
-- Extract a short actionable title.
-- Extract due date if mentioned (e.g. "today", "tomorrow", specific date).
-- If no due date, set "due" to null.
-
-NOTE:
-- The user is recording information or a fact.
-
-IDEA:
-- The user is expressing a creative or future idea.
-
-Return EXACTLY one of the following JSON shapes.
-
-TASK:
 {
-  "type": "task",
-  "title": "string",
-  "due": "string or null",
-  "confidence": number
+  "hypothesis": "task" | "meeting" | "idea",
+  "title": string,
+  "start": string | null,
+  "end": string | null,
+  "due": string | null,
+  "relativeTime": string | null,
+  "confidence": number,
+  "signals": {
+    "hasDate": boolean,
+    "hasTime": boolean,
+    "hasTimeRange": boolean
+  }
 }
 
-NOTE:
-{
-  "type": "note",
-  "content": "string",
-  "confidence": number
-}
-
-IDEA:
-{
-  "type": "idea",
-  "content": "string",
-  "confidence": number
-}
+Additional rules:
+- "tomorrow", weekdays, or phrases like "next week" are NOT dates.
+- Do NOT convert relative time into ISO dates.
+- Do NOT explain anything.
         `,
       },
       {
@@ -73,5 +57,5 @@ IDEA:
     ],
   });
 
-  return response.choices[0].message.content ?? "";
+  return response.choices[0].message.content!;
 }
