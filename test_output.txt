@@ -1,0 +1,24 @@
+﻿≡ƒº¬ Quick Sanity Test
+
+≡ƒףו DATE PARSING:
+  ╫₧╫ק╫¿: Thu Jan 22 2026
+  1.2: Sun Feb 01 2026
+  15/3: Sun Mar 15 2026
+  ╫פ╫¿╫נ╫⌐╫ץ╫ƒ ╫£╫ש╫á╫ץ╫נ╫¿: Fri Jan 01 2027
+  ╫ס╫ש╫ץ╫¥ ╫¿╫נ╫⌐╫ץ╫ƒ: Sun Jan 25 2026
+
+Γן░ TIME PARSING:
+  ╫⌐╫⌐ ╫ס╫ó╫¿╫ס: { hour: 18, minute: 0, confidence: 0.9 }
+  12 ╫ס╫ª╫פ╫¿╫ש╫ש╫¥: { hour: 12, minute: 0, confidence: 0.9 }
+  8:30: { hour: 8, minute: 30, confidence: 0.95 }
+
+≡ƒפה FOLLOWUP FLOW TEST:
+  Step 1 - Created pending: DATE_TIME_RANGE
+  Step 2 - After '╫₧╫ק╫¿': SEND_WHATSAPP
+    Saved date: 2026-01-21
+    New missing: TIME
+  Step 3 - After '╫ס╫⌐╫⌐ ╫ס╫ó╫¿╫ס': CREATE_MEETING
+    Meeting title: ╫ñ╫ע╫ש╫⌐╫פ ╫ó╫¥ ╫ף╫á╫ש
+    Meeting start: 2026-01-21T16:00:00.000Z
+
+Γ£ו FOLLOW-UP FLOW WORKS CORRECTLY!

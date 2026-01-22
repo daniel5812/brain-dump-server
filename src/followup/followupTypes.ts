@@ -1,28 +1,46 @@
 // src/followup/followupTypes.ts
 
-export type MissingField = "DATE" | "TIME" | "DATE_TIME_RANGE";
+/* =========================
+   Missing fields
+========================= */
+
+export type MissingField =
+  | "DATE"
+  | "TIME"
+  | "DATE_TIME_RANGE";
+
+/* =========================
+   Time structure
+========================= */
 
 export interface TimeOfDay {
-  hours: number;   // 0–23
-  minutes: number; // 0–59
+  hours: number;    // 0–23
+  minutes: number;  // 0–59
 }
 
-/**
- * מצב follow-up שממתין לתשובת משתמש
- * - rawTimeExpression: ההקשר המקורי ("יום ראשון", "מחר בשעה 11", וכו')
- * - date/startTime/endTime: מה שכבר זוהה (אם זוהה)
- */
+/* =========================
+   Pending follow-up state
+========================= */
+
 export interface PendingFollowup {
-  intentType: "meeting" | "task"; // כרגע אתה משתמש בזה כך בפועל
+  // סוג הכוונה המקורית
+  intentType: "task" | "meeting";
+
+  // כותרת / נושא
   title: string;
 
+  // מה חסר כרגע
   missing: MissingField;
 
-  // מה שכבר זוהה (אופציונלי)
-  date?: string; // YYYY-MM-DD
+  // מה כבר זוהה (אופציונלי)
+  date?: string; // YYYY-MM-DD (resolved absolute date)
+
   startTime?: TimeOfDay;
   endTime?: TimeOfDay;
 
+  // הביטוי המקורי של הזמן (ל־debug / UX)
   rawTimeExpression?: string;
+
+  // זמן יצירה (ל־timeout עתידי)
   createdAt: number;
 }

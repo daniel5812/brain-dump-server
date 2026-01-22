@@ -9,3 +9,11 @@ dist/
 
 # logs
 npm-debug.log*
+
+tokens/
+
+# user data (multi-user)
+data/
+
+secrets/
+

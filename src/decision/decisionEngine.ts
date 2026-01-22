@@ -1,15 +1,6 @@
-// src/decision/decisionEngine.ts
-
 import { resolveIntent } from "./resolveIntent";
 import { ActionPlan } from "../actions/types";
 
-/**
- * Decision Layer
- * --------------
- * מקבל RawIntent (מה-LLM),
- * מresolve אותו ל-intent יציב (task/meeting/idea/unclear),
- * ומתרגם אותו ל-ActionPlan שהאקסקיוטר יודע לבצע.
- */
 export async function decide(rawIntent: any): Promise<ActionPlan> {
   const intent = resolveIntent(rawIntent);
 
@@ -27,9 +18,8 @@ export async function decide(rawIntent: any): Promise<ActionPlan> {
           },
           {
             type: "SEND_WHATSAPP",
-            message: `📋 יצרתי משימה: ${intent.title}${
-              intent.due ? ` (עד ${intent.due})` : ""
-            }`,
+            message: `📋 יצרתי משימה: ${intent.title}${intent.due ? ` (עד ${intent.due})` : ""
+              }`,
           },
         ],
       };
@@ -73,53 +63,20 @@ export async function decide(rawIntent: any): Promise<ActionPlan> {
     /* =========================
        UNCLEAR → FOLLOW-UP
     ========================= */
-    case "unclear": {
-      const base = {
-        type: "REQUEST_FOLLOWUP" as const,
-        intentType: (rawIntent?.hypothesis ?? "task") as "task" | "meeting",
-        title: intent.title,
-      };
-
-      if (intent.reason === "MISSING_DATE") {
-        return {
-          actions: [
-            {
-              ...base,
-              missing: "DATE" as const,
-              context: rawIntent?.relativeTime ?? rawIntent?.title ?? undefined,
-              question:
-                "📅 הבנתי את השעה, אבל לא את היום. מתי זה אמור לקרות? (לדוגמה: מחר / ביום ראשון הקרוב / 1.1)",
-            },
-          ],
-        };
-      }
-
-      if (intent.reason === "MISSING_TIME") {
-        return {
-          actions: [
-            {
-              ...base,
-              missing: "TIME" as const,
-              context: rawIntent?.relativeTime ?? rawIntent?.title ?? undefined,
-              question:
-                "🕒 הבנתי את היום, אבל חסרה לי שעה. באיזו שעה זה? (לדוגמה: 12 בצהריים / 7 בערב / 08:30)",
-            },
-          ],
-        };
-      }
-
+    case "unclear":
       return {
         actions: [
           {
-            ...base,
-            missing: "DATE_TIME_RANGE" as const,
-            context: rawIntent?.relativeTime ?? rawIntent?.title ?? undefined,
+            type: "REQUEST_FOLLOWUP",
+            intentType: rawIntent.hypothesis === "meeting" ? "meeting" : "task",
+            title: intent.title,
+            missing: "DATE_TIME_RANGE",
+            context: rawIntent.relativeTime ?? undefined,
             question:
-              "🤔 כדי לבצע את זה אני צריך עוד קצת מידע: זה משימה, פגישה או רעיון? ואם זו פגישה—תן גם יום ושעה.",
+              "🤔 כדי להמשיך אני צריך עוד קצת מידע — יום ושעה (לדוגמה: מחר ב־12 / ביום ראשון בשש בערב)",
           },
         ],
       };
-    }
   }
 
   /* =========================

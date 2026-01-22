@@ -1,0 +1,79 @@
+// external/testmail.ts
+// Email sender using nodemailer
+
+import nodemailer from "nodemailer";
+
+// ===========================
+// CONFIGURATION (MACRO VARS)
+// ===========================
+
+const SENDER_EMAIL = "daniel5810005@gmail.com";
+const RECEIVER_EMAIL = "shahar20788@gmail.com";
+const USERNAME = "daniel5810005@gmail.com";  // Full email, not just "daniel"
+const PASSWORD = "aaxq yasc vbfb fcrc";  // Use App Password from Google!
+
+// Email content
+const SUBJECT = "Test Email from TypeScript";
+const BODY = `
+שלום!
+
+זוהי הודעת בדיקה מ-TypeScript.
+
+בברכה,
+Brain Dump
+`;
+
+// ===========================
+// MAIN FUNCTION
+// ===========================
+
+async function sendEmail(
+    sender: string,
+    receiver: string,
+    username: string,
+    password: string,
+    subject: string,
+    body: string
+): Promise<boolean> {
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false, // TLS
+        auth: {
+            user: username,
+            pass: password,
+        },
+    });
+
+    try {
+        // Send email
+        const info = await transporter.sendMail({
+            from: sender,
+            to: receiver,
+            subject: subject,
+            text: body,
+        });
+
+        console.log("✅ Email sent successfully!");
+        console.log("   Message ID:", info.messageId);
+        return true;
+
+    } catch (error: any) {
+        console.error("❌ Failed to send email:", error.message);
+        return false;
+    }
+}
+
+// ===========================
+// RUN
+// ===========================
+
+sendEmail(
+    SENDER_EMAIL,
+    RECEIVER_EMAIL,
+    USERNAME,
+    PASSWORD,
+    SUBJECT,
+    BODY
+);

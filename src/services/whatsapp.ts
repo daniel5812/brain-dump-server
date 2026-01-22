@@ -1,46 +1,100 @@
-import twilio from "twilio";
+// src/services/whatsapp.ts
+// Uses Green API for WhatsApp messaging (multi-user)
+
 import dotenv from "dotenv";
+import { getUserConfigSync } from "../users/userStore";
 
 dotenv.config();
 
-const isWhatsAppDisabled =
-  process.env.DISABLE_WHATSAPP === "true";
+/* =========================
+   GREEN API CONFIG
+========================= */
 
-let client: ReturnType<typeof twilio> | null = null;
+const GREEN_API_URL = process.env.GREEN_API_URL || "https://api.green-api.com";
+const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID;
+const API_TOKEN = process.env.GREEN_API_TOKEN;
+const DEFAULT_PHONE = process.env.GREEN_API_PHONE;
 
-function getTwilioClient() {
-  if (!client) {
-    client = twilio(
-      process.env.TWILIO_ACCOUNT_SID!,
-      process.env.TWILIO_AUTH_TOKEN!
-    );
-  }
-  return client;
+/* =========================
+   HELPERS
+========================= */
+
+/**
+ * Convert phone number to Green API chatId format
+ */
+function formatChatId(phone: string): string {
+  let cleaned = phone
+    .replace("whatsapp:", "")
+    .replace("+", "")
+    .replace(/@c\.us$/, "")
+    .trim();
+
+  return `${cleaned}@c.us`;
 }
 
 /**
- * Centralized WhatsApp sender
- * - Always logs assistant output
- * - Optionally sends via Twilio
+ * Resolve WhatsApp destination by userId
  */
-export async function sendWhatsAppMessage(message: string) {
-  // 🧠 תמיד נדע מה העוזר אמר
-  console.log("🧠 Assistant says:");
-  console.log(message);
-  console.log("—".repeat(40));
+function resolveWhatsappTo(userId?: string): string {
+  if (userId) {
+    // Try to get phone from user config (sync for simplicity)
+    const userConfig = getUserConfigSync(userId);
+    if (userConfig?.phone) {
+      return formatChatId(userConfig.phone);
+    }
+    return formatChatId(userId);
+  }
 
-  // ❌ WhatsApp כבוי – עוצרים כאן
-  if (isWhatsAppDisabled) {
+  if (!DEFAULT_PHONE) {
+    throw new Error("Missing GREEN_API_PHONE in environment");
+  }
+
+  return formatChatId(DEFAULT_PHONE);
+}
+
+/* =========================
+   PUBLIC API
+========================= */
+
+export async function sendWhatsAppMessage(
+  message: string,
+  userId?: string
+) {
+  if (process.env.TEST_MODE === "true" || process.env.DISABLE_WHATSAPP === "true") {
     console.log("🟡 WhatsApp sending is DISABLED");
+    console.log("📨 Message:", message);
+    console.log("👤 To:", userId ?? "(default)");
     return;
   }
 
-  // 🟢 WhatsApp פעיל – שולחים באמת
-  const twilioClient = getTwilioClient();
+  if (!INSTANCE_ID || !API_TOKEN) {
+    throw new Error("Missing GREEN_API_INSTANCE_ID or GREEN_API_TOKEN");
+  }
 
-  return twilioClient.messages.create({
-    from: process.env.TWILIO_WHATSAPP_FROM!,
-    to: process.env.TWILIO_WHATSAPP_TO!,
-    body: message,
-  });
+  const chatId = resolveWhatsappTo(userId);
+  const url = `${GREEN_API_URL}/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`;
+
+  console.log("📤 Sending WhatsApp via Green API...");
+  console.log("   To:", chatId);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId, message }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Green API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log("✅ WhatsApp sent! ID:", result.idMessage);
+    return result;
+
+  } catch (error: any) {
+    console.error("❌ WhatsApp send failed:", error.message);
+    throw error;
+  }
 }
