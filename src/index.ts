@@ -61,9 +61,9 @@ app.post("/brain-dump", async (req, res) => {
   ) {
     return res.status(400).json({ ok: false, error: "Missing timestamp" });
   }
-  if (typeof signature !== "string" || !signature.trim()) {
-    return res.status(400).json({ ok: false, error: "Missing signature" });
-  }
+  // if (typeof signature !== "string" || !signature.trim()) {
+  //   return res.status(400).json({ ok: false, error: "Missing signature" });
+  // }
 
   // Normalize timestamp to number (to avoid "string vs number" signature mismatches)
   const ts =
@@ -76,23 +76,23 @@ app.post("/brain-dump", async (req, res) => {
   /* =========================
      🔐 AUTH (HMAC)
   ========================= */
-  const isValid = verifyHmac(userId, text, ts, signature);
+  // const isValid = verifyHmac(userId, text, ts, signature);
 
-  if (!isValid) {
-    console.log("🔐 HMAC DEBUG (INVALID)");
-    console.log("userId:", userId);
-    console.log("timestamp:", ts, typeof ts);
-    console.log("text:", text);
-    console.log("signature (received):", signature);
+  // if (!isValid) {
+  //   console.log("🔐 HMAC DEBUG (INVALID)");
+  //   console.log("userId:", userId);
+  //   console.log("timestamp:", ts, typeof ts);
+  //   console.log("text:", text);
+  //   console.log("signature (received):", signature);
 
-    return res.status(401).json({
-      ok: false,
-      error: "INVALID_SIGNATURE",
-    });
-  }
+  //   return res.status(401).json({
+  //     ok: false,
+  //     error: "INVALID_SIGNATURE",
+  //   });
+  // }
 
-  console.log("🧠 User input:", text);
-  console.log("👤 User ID:", userId);
+  // console.log("🧠 User input:", text);
+  // console.log("👤 User ID:", userId);
 
   /* =========================
      🆕 NEW USER CHECK

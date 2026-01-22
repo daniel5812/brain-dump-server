@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn src/index.ts",
-    "build": "tsc",
+    "build": "tsc && xcopy /E /I /Y src\\services\\email\\templates dist\\services\\email\\templates",
     "start": "node dist/index.js"
   },
   "keywords": [],
